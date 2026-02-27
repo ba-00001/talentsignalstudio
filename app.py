@@ -19,6 +19,18 @@ DEMO_USERNAME = "demo"
 DEMO_PASSWORD = "demo"
 ROOT_DIR = Path(__file__).resolve().parent
 DEMO_RESUME_PATH = ROOT_DIR / "data" / "demo_resume_fiu_business_analytics.txt"
+DEMO_RESUME_FALLBACK = """Camila Perez
+Miami, FL | camila.perez@fiu-demo.edu | linkedin.com/in/camilaperez-demo
+
+EDUCATION
+Florida International University (FIU)
+BBA in Business Analytics
+Expected Graduation: May 2026
+
+SUMMARY
+Business Analytics student with hands-on AI, SQL, Excel, and Tableau experience.
+Strong in stakeholder communication, KPI reporting, and structured problem solving.
+"""
 SKILL_ORDER = [
     "ai_literacy",
     "analytical_thinking",
@@ -164,6 +176,13 @@ def inject_styles():
     st.markdown(
         """
         <style>
+        .main .block-container {
+            max-width: 1180px;
+            padding-top: 1.2rem;
+            padding-bottom: 2rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
         .hero-wrap {
             background: radial-gradient(circle at 20% 20%, #1ed760 0%, #10954b 35%, #0f172a 100%);
             border-radius: 18px;
@@ -182,6 +201,38 @@ def inject_styles():
         }
         .toolprint-title { margin-top: 0.5rem; font-weight: 700; font-size: 1.2rem; }
         .login-shell { max-width: 460px; margin: 0 auto; }
+        .stButton button, .stDownloadButton button {
+            border-radius: 10px;
+        }
+        @media (max-width: 900px) {
+            .main .block-container {
+                padding-left: 0.6rem;
+                padding-right: 0.6rem;
+            }
+            .hero-wrap {
+                padding: 16px;
+                border-radius: 12px;
+            }
+            .hero-title {
+                font-size: 1.5rem;
+            }
+            .hero-sub {
+                font-size: 0.95rem;
+            }
+            [data-testid="stHorizontalBlock"] {
+                gap: 0.35rem !important;
+            }
+            [data-testid="column"] {
+                min-width: 100% !important;
+                flex: 1 1 100% !important;
+            }
+            .login-shell {
+                max-width: 100%;
+            }
+            .stButton button, .stDownloadButton button {
+                width: 100%;
+            }
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -231,6 +282,50 @@ def export_payload(profile: CandidateProfile, assessment) -> dict:
             ],
         },
     }
+
+
+def get_demo_resume_content() -> str:
+    try:
+        if DEMO_RESUME_PATH.exists():
+            return DEMO_RESUME_PATH.read_text(encoding="utf-8")
+    except Exception:
+        pass
+    return DEMO_RESUME_FALLBACK
+
+
+def build_mock_jobs(role: str, location: str, base_match: float) -> list[dict[str, str | float]]:
+    return [
+        {
+            "Source": "LinkedIn (Mock)",
+            "Title": f"Junior {role}",
+            "Company": "Orbit Analytics",
+            "Location": location,
+            "Match %": round(min(100.0, base_match + 2), 1),
+        },
+        {
+            "Source": "Indeed (Mock)",
+            "Title": f"{role} Associate",
+            "Company": "Southview Insights",
+            "Location": location,
+            "Match %": round(max(0.0, base_match - 4), 1),
+        },
+        {
+            "Source": "Company Portal (Mock)",
+            "Title": f"AI-Enabled {role}",
+            "Company": "Nova Operations",
+            "Location": location,
+            "Match %": round(min(100.0, base_match + 5), 1),
+        },
+    ]
+
+
+def build_mock_training(top_gaps: list[str]) -> list[dict[str, str]]:
+    focus = ", ".join(top_gaps[:2]) if top_gaps else "AI literacy, communication"
+    return [
+        {"Provider": "Mock Academy", "Program": f"Career Sprint: {focus}", "Format": "4 weeks"},
+        {"Provider": "Mock Bootcamp", "Program": "Entry Analyst Intensive", "Format": "6 weeks"},
+        {"Provider": "Mock Labs", "Program": "Portfolio Project Studio", "Format": "Self-paced"},
+    ]
 
 
 def ensure_assessment(benchmarks, benchmarks_by_role):
@@ -308,29 +403,8 @@ def render_job_matching_page():
     top_roles = [role for role, _ in assessment.recommendations] or [profile.target_role]
     selected_role = st.selectbox("Role focus", top_roles, index=0)
 
-    mock_jobs = [
-        {
-            "Source": "LinkedIn (Mock)",
-            "Title": f"Junior {selected_role}",
-            "Company": "Orbit Analytics",
-            "Location": location,
-            "Match %": round(assessment.recommendations[0][1] if assessment.recommendations else assessment.fit_score, 1),
-        },
-        {
-            "Source": "Indeed (Mock)",
-            "Title": f"{selected_role} Associate",
-            "Company": "Southview Insights",
-            "Location": location,
-            "Match %": round(max(0.0, assessment.fit_score - 4), 1),
-        },
-        {
-            "Source": "LinkedIn (Mock)",
-            "Title": f"AI-Enabled {selected_role}",
-            "Company": "Nova Operations",
-            "Location": location,
-            "Match %": round(min(100.0, assessment.fit_score + 3), 1),
-        },
-    ]
+    base_match = assessment.recommendations[0][1] if assessment.recommendations else assessment.fit_score
+    mock_jobs = build_mock_jobs(selected_role, location, base_match)
     st.markdown("#### Mock Job Matches")
     st.dataframe(pd.DataFrame(mock_jobs), hide_index=True, use_container_width=True)
 
@@ -380,6 +454,8 @@ def render_upskilling_navigator(benchmarks, benchmarks_by_role):
     st.markdown(f"#### Learning Connectors ({goal_window})")
     for link in build_training_links(top_gap_labels):
         st.write(f"- [{link['provider']}: {link['title']}]({link['url']})")
+    st.markdown("#### Mock Training Catalog (Fallback)")
+    st.dataframe(pd.DataFrame(build_mock_training(top_gap_labels)), hide_index=True, use_container_width=True)
 
     st.markdown("#### Career Path Rationale")
     st.write(
@@ -443,13 +519,16 @@ def render_landing_page():
     st.markdown("### Demo Assets")
     st.write("- Profile: FIU Business student studying Business Analytics")
     st.write("- After login, use sidebar preset: `FIU Business Analytics Demo`")
-    if DEMO_RESUME_PATH.exists():
-        st.download_button(
-            "Download Dummy Resume (FIU Demo)",
-            data=DEMO_RESUME_PATH.read_text(encoding="utf-8"),
-            file_name="FIU_Business_Analytics_Demo_Resume.txt",
-            mime="text/plain",
-        )
+    resume_content = get_demo_resume_content()
+    st.download_button(
+        "Download Dummy Resume (FIU Demo)",
+        data=resume_content,
+        file_name="FIU_Business_Analytics_Demo_Resume.txt",
+        mime="text/plain",
+    )
+    with st.expander("Mobile fallback: View / copy resume text"):
+        st.caption("If download is blocked on mobile browser, copy this text manually.")
+        st.text_area("Resume text", value=resume_content, height=220)
 
 
 def render_assessment_workspace(skills_meta, skill_labels, benchmarks, benchmarks_by_role, roles):
@@ -604,13 +683,21 @@ def render_assessment_workspace(skills_meta, skill_labels, benchmarks, benchmark
             for job in live_jobs:
                 st.write(f"- [{job['title']} - {job['company']} ({job['source']})]({job['url']})")
         else:
-            st.info("No live API results found. Use direct platform links.")
+            st.warning("No live API results found. Showing mock job matches.")
+            st.dataframe(
+                pd.DataFrame(build_mock_jobs(profile.target_role, preferred_location, assessment.fit_score)),
+                hide_index=True,
+                use_container_width=True,
+            )
         for item in build_job_search_links(profile.target_role, preferred_location):
             st.write(f"- [{item['title']}]({item['url']})")
 
         top_gap_labels = [g.skill.replace("_", " ") for g in assessment.gaps[:3]]
+        st.markdown("#### Upskilling Links")
         for item in build_training_links(top_gap_labels):
             st.write(f"- [{item['provider']}: {item['title']}]({item['url']})")
+        st.markdown("#### Mock Training Fallback")
+        st.dataframe(pd.DataFrame(build_mock_training(top_gap_labels)), hide_index=True, use_container_width=True)
 
     with st.expander("Section F - AI Companion", expanded=True):
         prompt = st.text_input("Ask your AI companion", value="How can I improve my readiness fastest?")
@@ -633,7 +720,7 @@ def render_assessment_workspace(skills_meta, skill_labels, benchmarks, benchmark
         st.download_button("Download Assessment JSON", data=json.dumps(report, indent=2), file_name=f"{profile.name.lower().replace(' ', '_')}_assessment.json", mime="application/json")
 
 
-st.set_page_config(page_title=APP_TITLE, layout="wide")
+st.set_page_config(page_title=APP_TITLE, layout="wide", initial_sidebar_state="collapsed")
 inject_styles()
 st.title(APP_TITLE)
 st.caption(APP_SUBTITLE)
