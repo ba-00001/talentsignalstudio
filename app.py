@@ -526,7 +526,7 @@ def render_landing_page():
         file_name="FIU_Business_Analytics_Demo_Resume.txt",
         mime="text/plain",
     )
-    with st.expander("Mobile fallback: View / copy resume text"):
+    with st.expander("View / copy resume text"):
         st.caption("If download is blocked on mobile browser, copy this text manually.")
         st.text_area("Resume text", value=resume_content, height=220)
 
