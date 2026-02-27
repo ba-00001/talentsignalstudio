@@ -10,6 +10,7 @@ from core.career_connectors import build_job_search_links, build_training_links,
 from core.companion import companion_response
 from core.models import CandidateProfile, RoleBenchmark
 from core.parsers import extract_candidate_signals
+from core.recommendations import build_upskilling_plan
 from core.scoring import score_candidate
 
 APP_TITLE = "TalentSignal Studio"
@@ -193,6 +194,8 @@ def try_login(username: str, password: str) -> bool:
 
 def apply_preset(preset_name: str):
     st.session_state["form_defaults"] = SCENARIO_PRESETS[preset_name]
+    st.session_state["assessment"] = None
+    st.session_state["last_profile"] = None
 
 
 def export_payload(profile: CandidateProfile, assessment) -> dict:
@@ -228,6 +231,162 @@ def export_payload(profile: CandidateProfile, assessment) -> dict:
             ],
         },
     }
+
+
+def ensure_assessment(benchmarks, benchmarks_by_role):
+    if st.session_state.get("assessment") and st.session_state.get("last_profile"):
+        return
+    defaults = st.session_state["form_defaults"]
+    profile = CandidateProfile(
+        name=defaults["name"],
+        target_role=defaults["target_role"],
+        education_level=defaults["education_level"],
+        experience_months=int(defaults["experience_months"]),
+        self_proficiency=float(defaults["self_proficiency"]),
+        tool_usage_frequency=float(defaults["tool_usage_frequency"]),
+        projects_count=int(defaults["projects_count"]),
+        internship_months=int(defaults["internship_months"]),
+        skills=defaults["skills"],
+    )
+    st.session_state["assessment"] = score_candidate(profile, benchmarks_by_role[profile.target_role], benchmarks)
+    st.session_state["last_profile"] = profile
+
+
+def render_ai_interview_simulator():
+    st.subheader("AI Interview Simulator")
+    assessment = st.session_state.get("assessment")
+    profile = st.session_state.get("last_profile")
+    if not (assessment and profile):
+        st.info("Run an assessment first from Assessment Workspace.")
+        return
+
+    category = st.radio("Interview mode", ["Behavioral", "Technical"], horizontal=True)
+    question_pool = [q for q in assessment.interview_pack if q.get("category") == category]
+    prompts = [q["question"] for q in question_pool]
+    selected_q = st.selectbox("Pick a question", prompts)
+    st.caption(next((q["rubric"] for q in question_pool if q["question"] == selected_q), ""))
+    answer = st.text_area("Your answer", height=170, placeholder="Type your response as if in a live interview.")
+
+    if st.button("Evaluate Answer"):
+        word_count = len(answer.split())
+        score = 35
+        if word_count >= 80:
+            score += 20
+        elif word_count >= 45:
+            score += 12
+        skill_keywords = [gap.skill.replace("_", " ") for gap in assessment.gaps[:3]]
+        matched = sum(1 for kw in skill_keywords if kw.split()[0] in answer.lower())
+        score += min(20, matched * 7)
+        if any(k in answer.lower() for k in ["verify", "tradeoff", "metric", "stakeholder", "result"]):
+            score += 15
+        score = min(100, score)
+
+        if score >= 80:
+            feedback = "Strong structure and role alignment. Keep this format."
+        elif score >= 60:
+            feedback = "Good baseline. Add more measurable outcomes and explicit reasoning."
+        else:
+            feedback = "Needs work. Use STAR format and include verification + impact."
+        st.metric("AI Interview Score", f"{score}/100")
+        st.write(feedback)
+
+
+def render_job_matching_page():
+    st.subheader("Job Matching Board")
+    assessment = st.session_state.get("assessment")
+    profile = st.session_state.get("last_profile")
+    if not (assessment and profile):
+        st.info("Run an assessment first from Assessment Workspace.")
+        return
+
+    location = st.text_input(
+        "Target location",
+        value=st.session_state.get("preferred_location", "United States"),
+        key="job_board_location",
+    )
+    st.session_state["preferred_location"] = location
+    top_roles = [role for role, _ in assessment.recommendations] or [profile.target_role]
+    selected_role = st.selectbox("Role focus", top_roles, index=0)
+
+    mock_jobs = [
+        {
+            "Source": "LinkedIn (Mock)",
+            "Title": f"Junior {selected_role}",
+            "Company": "Orbit Analytics",
+            "Location": location,
+            "Match %": round(assessment.recommendations[0][1] if assessment.recommendations else assessment.fit_score, 1),
+        },
+        {
+            "Source": "Indeed (Mock)",
+            "Title": f"{selected_role} Associate",
+            "Company": "Southview Insights",
+            "Location": location,
+            "Match %": round(max(0.0, assessment.fit_score - 4), 1),
+        },
+        {
+            "Source": "LinkedIn (Mock)",
+            "Title": f"AI-Enabled {selected_role}",
+            "Company": "Nova Operations",
+            "Location": location,
+            "Match %": round(min(100.0, assessment.fit_score + 3), 1),
+        },
+    ]
+    st.markdown("#### Mock Job Matches")
+    st.dataframe(pd.DataFrame(mock_jobs), hide_index=True, use_container_width=True)
+
+    st.markdown("#### Real Platform Links")
+    for item in build_job_search_links(selected_role, location):
+        st.write(f"- [{item['source']}: {item['title']}]({item['url']})")
+
+    st.markdown("#### Optional Live API Jobs")
+    st.caption("Provide RAPIDAPI_KEY to fetch live listings.")
+    live_jobs = fetch_live_jobs(selected_role, location, max_results=6)
+    if live_jobs:
+        for job in live_jobs:
+            st.write(f"- [{job['title']} - {job['company']} ({job['source']})]({job['url']})")
+    else:
+        st.info("No live API results right now. Use the real platform links above.")
+
+
+def render_upskilling_navigator(benchmarks, benchmarks_by_role):
+    st.subheader("Upskilling Navigator")
+    assessment = st.session_state.get("assessment")
+    profile = st.session_state.get("last_profile")
+    if not (assessment and profile):
+        st.info("Run an assessment first from Assessment Workspace.")
+        return
+
+    role_options = [role for role, _ in assessment.recommendations] or [profile.target_role]
+    chosen_role = st.selectbox("Career path goal", role_options, index=0)
+    goal_window = st.selectbox("Time horizon", ["30 days", "60 days", "90 days"], index=2)
+
+    role_assessment = score_candidate(profile, benchmarks_by_role[chosen_role], benchmarks)
+    tailored_plan = build_upskilling_plan(role_assessment.gaps[:5])
+    top_gap_labels = [gap.skill.replace("_", " ") for gap in role_assessment.gaps[:3]]
+
+    st.metric("Role Fit Projection", as_pct_label(role_assessment.fit_score), chosen_role)
+    st.markdown("#### Tailored Action Plan")
+    c1, c2, c3 = st.columns(3)
+    c1.markdown("**2-week**")
+    for item in tailored_plan.get("2-week", []):
+        c1.write(f"- {item}")
+    c2.markdown("**30-day**")
+    for item in tailored_plan.get("30-day", []):
+        c2.write(f"- {item}")
+    c3.markdown("**90-day**")
+    for item in tailored_plan.get("90-day", []):
+        c3.write(f"- {item}")
+
+    st.markdown(f"#### Learning Connectors ({goal_window})")
+    for link in build_training_links(top_gap_labels):
+        st.write(f"- [{link['provider']}: {link['title']}]({link['url']})")
+
+    st.markdown("#### Career Path Rationale")
+    st.write(
+        f"Based on your current profile, `{chosen_role}` is a realistic next step if you improve: "
+        + ", ".join(top_gap_labels)
+        + "."
+    )
 
 
 def render_landing_page():
@@ -487,6 +646,7 @@ roles = [b.role for b in benchmarks]
 ensure_state()
 
 if st.session_state["authenticated"]:
+    ensure_assessment(benchmarks, benchmarks_by_role)
     with st.sidebar:
         st.markdown("### Session")
         st.success("Signed in as demo")
@@ -496,11 +656,21 @@ if st.session_state["authenticated"]:
             st.session_state["last_profile"] = None
             st.session_state["form_defaults"] = default_form_values()
             st.rerun()
-        page = st.radio("Go to", ["Landing", "Assessment Workspace"])
+        page = st.radio(
+            "Go to",
+            [
+                "Landing",
+                "Assessment Workspace",
+                "AI Interview Simulator",
+                "Job Matchings",
+                "Upskilling Navigator",
+            ],
+        )
         preset = st.selectbox("Load preset profile", list(SCENARIO_PRESETS.keys()))
         if st.button("Apply Preset"):
             apply_preset(preset)
             st.success(f"Loaded preset: {preset}")
+            ensure_assessment(benchmarks, benchmarks_by_role)
 else:
     with st.sidebar:
         st.markdown("### Session")
@@ -509,8 +679,14 @@ else:
 
 if page == "Landing":
     render_landing_page()
-else:
+elif page == "Assessment Workspace":
     if not st.session_state["authenticated"]:
         st.warning("Please sign in with demo credentials in the sidebar to access the workspace.")
     else:
         render_assessment_workspace(skills_meta, skill_labels, benchmarks, benchmarks_by_role, roles)
+elif page == "AI Interview Simulator":
+    render_ai_interview_simulator()
+elif page == "Job Matchings":
+    render_job_matching_page()
+elif page == "Upskilling Navigator":
+    render_upskilling_navigator(benchmarks, benchmarks_by_role)
