@@ -1,0 +1,112 @@
+[
+  {
+    "role": "Analyst",
+    "required_skills": {
+      "ai_literacy": 0.7,
+      "analytical_thinking": 0.85,
+      "communication": 0.7,
+      "domain_knowledge": 0.6,
+      "tool_fluency": 0.75,
+      "critical_thinking": 0.8
+    },
+    "preferred_skills": {
+      "domain_knowledge": 0.7
+    },
+    "weight_map": {
+      "ai_literacy": 1.0,
+      "analytical_thinking": 1.3,
+      "communication": 1.0,
+      "domain_knowledge": 0.8,
+      "tool_fluency": 1.2,
+      "critical_thinking": 1.2
+    }
+  },
+  {
+    "role": "Operations Associate",
+    "required_skills": {
+      "ai_literacy": 0.65,
+      "analytical_thinking": 0.7,
+      "communication": 0.75,
+      "domain_knowledge": 0.7,
+      "tool_fluency": 0.7,
+      "critical_thinking": 0.7
+    },
+    "preferred_skills": {
+      "communication": 0.8
+    },
+    "weight_map": {
+      "ai_literacy": 1.0,
+      "analytical_thinking": 1.0,
+      "communication": 1.2,
+      "domain_knowledge": 1.1,
+      "tool_fluency": 1.0,
+      "critical_thinking": 1.1
+    }
+  },
+  {
+    "role": "Marketing Coordinator",
+    "required_skills": {
+      "ai_literacy": 0.7,
+      "analytical_thinking": 0.65,
+      "communication": 0.85,
+      "domain_knowledge": 0.7,
+      "tool_fluency": 0.7,
+      "critical_thinking": 0.7
+    },
+    "preferred_skills": {
+      "communication": 0.9
+    },
+    "weight_map": {
+      "ai_literacy": 1.0,
+      "analytical_thinking": 0.9,
+      "communication": 1.4,
+      "domain_knowledge": 1.1,
+      "tool_fluency": 1.0,
+      "critical_thinking": 1.0
+    }
+  },
+  {
+    "role": "Product Analyst",
+    "required_skills": {
+      "ai_literacy": 0.75,
+      "analytical_thinking": 0.85,
+      "communication": 0.75,
+      "domain_knowledge": 0.75,
+      "tool_fluency": 0.8,
+      "critical_thinking": 0.85
+    },
+    "preferred_skills": {
+      "critical_thinking": 0.9
+    },
+    "weight_map": {
+      "ai_literacy": 1.1,
+      "analytical_thinking": 1.3,
+      "communication": 1.0,
+      "domain_knowledge": 1.0,
+      "tool_fluency": 1.2,
+      "critical_thinking": 1.4
+    }
+  },
+  {
+    "role": "Support Specialist",
+    "required_skills": {
+      "ai_literacy": 0.6,
+      "analytical_thinking": 0.65,
+      "communication": 0.85,
+      "domain_knowledge": 0.65,
+      "tool_fluency": 0.7,
+      "critical_thinking": 0.7
+    },
+    "preferred_skills": {
+      "communication": 0.9
+    },
+    "weight_map": {
+      "ai_literacy": 0.9,
+      "analytical_thinking": 1.0,
+      "communication": 1.5,
+      "domain_knowledge": 1.0,
+      "tool_fluency": 1.0,
+      "critical_thinking": 1.1
+    }
+  }
+]

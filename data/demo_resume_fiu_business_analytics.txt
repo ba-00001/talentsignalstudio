@@ -1,0 +1,42 @@
+Camila Perez
+Miami, FL | camila.perez@fiu-demo.edu | linkedin.com/in/camilaperez-demo
+
+EDUCATION
+Florida International University (FIU)
+BBA in Business Analytics
+Expected Graduation: May 2026
+Relevant Coursework: Business Intelligence, Applied Statistics, Data Visualization, Operations Analytics
+
+SUMMARY
+Business Analytics student with hands-on experience using AI tools, SQL, Excel, and Tableau to improve decision-making.
+Strong in stakeholder communication, KPI reporting, and structured problem solving.
+
+TECHNICAL SKILLS
+AI Literacy: ChatGPT prompt engineering, output verification workflows, AI-assisted reporting
+Analytics: SQL, Excel, Tableau, Python (pandas)
+Communication: Executive summaries, slide storytelling, stakeholder updates
+Domain Knowledge: Retail operations, customer funnel metrics, marketing performance
+Tool Fluency: Power BI, Jira, Notion, Google Sheets
+Critical Thinking: Root-cause analysis, tradeoff framing, hypothesis testing
+
+PROJECTS
+1) Customer Churn Risk Dashboard
+- Built SQL + Tableau dashboard tracking churn signals and monthly retention KPIs.
+- Improved clarity for manager reviews by adding segmentation and trend flags.
+
+2) AI-Assisted Campaign Analysis
+- Used AI to draft initial weekly analysis, then validated claims against source data.
+- Reduced report turnaround time by 35% while improving data-quality checks.
+
+3) Inventory Forecasting Case Project
+- Developed forecasting model in Excel/Python for high-variance product categories.
+- Presented recommendations to class panel with scenario-based tradeoffs.
+
+EXPERIENCE
+Business Operations Intern | South Florida Growth Co. | 4 months
+- Automated weekly KPI pull and presentation prep across sales and support metrics.
+- Coordinated with stakeholders to translate analysis into operational actions.
+
+LEADERSHIP
+FIU Business Analytics Club
+- Led peer workshop on AI prompt quality, ethics, and verification best practices.

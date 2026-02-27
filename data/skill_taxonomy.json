@@ -1,0 +1,28 @@
+{
+  "skills": [
+    {
+      "key": "ai_literacy",
+      "label": "AI Literacy"
+    },
+    {
+      "key": "analytical_thinking",
+      "label": "Analytical Thinking"
+    },
+    {
+      "key": "communication",
+      "label": "Communication"
+    },
+    {
+      "key": "domain_knowledge",
+      "label": "Domain Knowledge"
+    },
+    {
+      "key": "tool_fluency",
+      "label": "Tool Fluency"
+    },
+    {
+      "key": "critical_thinking",
+      "label": "Critical Thinking"
+    }
+  ]
+}
