@@ -14,10 +14,10 @@ from core.scoring import score_candidate
 
 APP_TITLE = "TalentSignal Studio"
 APP_SUBTITLE = "Make AI-era readiness visible"
-BASE_DIR = Path(__file__).parent
 DEMO_USERNAME = "demo"
 DEMO_PASSWORD = "demo"
-DEMO_RESUME_PATH = BASE_DIR / "data" / "demo_resume_fiu_business_analytics.txt"
+ROOT_DIR = Path(__file__).resolve().parent
+DEMO_RESUME_PATH = ROOT_DIR / "data" / "demo_resume_fiu_business_analytics.txt"
 SKILL_ORDER = [
     "ai_literacy",
     "analytical_thinking",
@@ -107,12 +107,12 @@ SCENARIO_PRESETS = {
 
 
 def load_taxonomy() -> list[dict[str, str]]:
-    with (BASE_DIR / "data" / "skill_taxonomy.json").open("r", encoding="utf-8") as f:
+    with (ROOT_DIR / "data" / "skill_taxonomy.json").open("r", encoding="utf-8") as f:
         return json.load(f)["skills"]
 
 
 def load_benchmarks() -> list[RoleBenchmark]:
-    with (BASE_DIR / "data" / "role_benchmarks.json").open("r", encoding="utf-8") as f:
+    with (ROOT_DIR / "data" / "role_benchmarks.json").open("r", encoding="utf-8") as f:
         raw = json.load(f)
     return [
         RoleBenchmark(
@@ -159,6 +159,34 @@ def ensure_state():
         st.session_state["authenticated"] = False
 
 
+def inject_styles():
+    st.markdown(
+        """
+        <style>
+        .hero-wrap {
+            background: radial-gradient(circle at 20% 20%, #1ed760 0%, #10954b 35%, #0f172a 100%);
+            border-radius: 18px;
+            padding: 28px;
+            color: #f8fff7;
+            margin-bottom: 18px;
+        }
+        .hero-title { font-size: 2.2rem; font-weight: 700; margin-bottom: 0.4rem; }
+        .hero-sub { opacity: 0.92; font-size: 1.03rem; }
+        .login-card {
+            background: #0f172a;
+            border: 1px solid #1f2937;
+            border-radius: 16px;
+            padding: 20px;
+            color: #e5e7eb;
+        }
+        .toolprint-title { margin-top: 0.5rem; font-weight: 700; font-size: 1.2rem; }
+        .login-shell { max-width: 460px; margin: 0 auto; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def try_login(username: str, password: str) -> bool:
     return username.strip().lower() == DEMO_USERNAME and password == DEMO_PASSWORD
 
@@ -203,24 +231,43 @@ def export_payload(profile: CandidateProfile, assessment) -> dict:
 
 
 def render_landing_page():
-    st.markdown("## Turn Resume Signals Into Readiness Signals")
-    st.write(
-        "TalentSignal Studio helps candidates and managers interpret readiness in AI-enabled entry-level roles."
+    st.markdown(
+        """
+        <div class="hero-wrap">
+          <div class="hero-title">TalentSignal Studio</div>
+          <div class="hero-sub">Professional readiness intelligence for AI-era entry-level careers.</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
-    st.info("Demo login available: `demo` / `demo`")
     col1, col2, col3 = st.columns(3)
     col1.metric("Assessment Lens", "6 Signals", "Fit + Gaps + Role Paths")
-    col2.metric("Interview Pack", "8 Questions", "Tailored to top skill gaps")
+    col2.metric("Interview Pack", "8 Questions", "Behavioral + Technical")
     col3.metric("Output Speed", "< 5 min", "Presentation-ready insights")
-    st.markdown("### What You Can Do")
-    st.write("- Upload resume plus manual skills mapping")
-    st.write("- Generate fit %, quant readiness likelihood, and confidence band")
-    st.write("- Compare candidate profile to role benchmarks")
-    st.write("- Simulate improvement with a what-if planner")
-    st.write("- Open real job links (LinkedIn/Indeed) and optional live API listings")
-    st.write("- Use AI companion guidance based on current assessment")
-    st.write("- Export a JSON report for your demo")
-    st.markdown("### Toolprint - Everything You Can Do")
+
+    center_left, center_mid, center_right = st.columns([1, 1.25, 1])
+    with center_mid:
+        st.markdown('<div class="login-shell">', unsafe_allow_html=True)
+        st.markdown('<div class="login-card">', unsafe_allow_html=True)
+        st.markdown("#### Sign In")
+        st.caption("Demo credentials: `demo` / `demo`")
+        if st.session_state["authenticated"]:
+            st.success("Signed in as demo. Use the sidebar menu to open Assessment Workspace.")
+        else:
+            with st.form("landing_login_form"):
+                user_in = st.text_input("Username", value="demo", key="landing_user")
+                pass_in = st.text_input("Password", type="password", value="demo", key="landing_pass")
+                if st.form_submit_button("Sign In"):
+                    if try_login(user_in, pass_in):
+                        st.session_state["authenticated"] = True
+                        st.rerun()
+                    else:
+                        st.error("Invalid credentials.")
+        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="toolprint-title">Toolprint</div>', unsafe_allow_html=True)
+
     toolprint = pd.DataFrame(
         [
             {"Module": "Candidate Intake", "Capability": "Upload resume, edit skill map, and apply profile presets"},
@@ -234,10 +281,9 @@ def render_landing_page():
         ]
     )
     st.dataframe(toolprint, hide_index=True, use_container_width=True)
-
     st.markdown("### Demo Assets")
     st.write("- Profile: FIU Business student studying Business Analytics")
-    st.write("- Use sidebar preset: `FIU Business Analytics Demo`")
+    st.write("- After login, use sidebar preset: `FIU Business Analytics Demo`")
     if DEMO_RESUME_PATH.exists():
         st.download_button(
             "Download Dummy Resume (FIU Demo)",
@@ -260,27 +306,17 @@ def render_assessment_workspace(skills_meta, skill_labels, benchmarks, benchmark
                     ["High School", "Associate", "Bachelor", "Master", "Other"],
                     index=["High School", "Associate", "Bachelor", "Master", "Other"].index(defaults["education_level"]),
                 )
-                experience_months = st.number_input(
-                    "Experience (months)", min_value=0, max_value=120, value=int(defaults["experience_months"])
-                )
+                experience_months = st.number_input("Experience (months)", min_value=0, max_value=120, value=int(defaults["experience_months"]))
                 projects_count = st.number_input("Projects completed", min_value=0, max_value=50, value=int(defaults["projects_count"]))
             with c2:
                 self_proficiency = st.slider("Self-rated proficiency", 0, 100, int(defaults["self_proficiency"] * 100)) / 100.0
-                tool_usage_frequency = st.slider(
-                    "AI/tool usage frequency", 0, 100, int(defaults["tool_usage_frequency"] * 100)
-                ) / 100.0
-                internship_months = st.number_input(
-                    "Internship months", min_value=0, max_value=60, value=int(defaults["internship_months"])
-                )
-                preferred_location = st.text_input(
-                    "Preferred job location",
-                    value=defaults.get("preferred_location", "United States"),
-                )
+                tool_usage_frequency = st.slider("AI/tool usage frequency", 0, 100, int(defaults["tool_usage_frequency"] * 100)) / 100.0
+                internship_months = st.number_input("Internship months", min_value=0, max_value=60, value=int(defaults["internship_months"]))
+                preferred_location = st.text_input("Preferred job location", value=defaults.get("preferred_location", "United States"))
                 uploaded_file = st.file_uploader("Resume upload (optional)", type=["pdf", "docx", "txt"])
 
             parsed_signals = extract_candidate_signals(uploaded_file) if uploaded_file else {"skills": {}, "keywords": []}
             parsed_skill_scores = parsed_signals.get("skills", {}) if isinstance(parsed_signals, dict) else {}
-
             st.markdown("Manual skills entry (takes precedence over resume parsing)")
             selected_skills = st.multiselect(
                 "Select skills to set manually",
@@ -341,20 +377,13 @@ def render_assessment_workspace(skills_meta, skill_labels, benchmarks, benchmark
         return
 
     with st.expander("Section B - Readiness Dashboard", expanded=True):
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Fit Score", as_pct_label(assessment.fit_score), assessment.fit_band)
-            st.progress(int(assessment.fit_score) / 100.0)
-        with col2:
-            st.metric(
-                "Quant Readiness Likelihood",
-                as_pct_label(assessment.quant_likelihood_pct),
-                f"Confidence: {assessment.confidence}",
-            )
-        with col3:
-            st.markdown("Dimension Scores")
-            for key, value in assessment.dimension_scores.items():
-                st.write(f"- {key.replace('_', ' ').title()}: {as_pct_label(value)}")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Fit Score", as_pct_label(assessment.fit_score), assessment.fit_band)
+        c1.progress(int(assessment.fit_score) / 100.0)
+        c2.metric("Quant Readiness Likelihood", as_pct_label(assessment.quant_likelihood_pct), f"Confidence: {assessment.confidence}")
+        c3.markdown("Dimension Scores")
+        for key, value in assessment.dimension_scores.items():
+            c3.write(f"- {key.replace('_', ' ').title()}: {as_pct_label(value)}")
 
         benchmark = benchmarks_by_role[profile.target_role]
         compare_df = pd.DataFrame(
@@ -372,161 +401,81 @@ def render_assessment_workspace(skills_meta, skill_labels, benchmarks, benchmark
         st.bar_chart(compare_df.set_index("Skill")[["Candidate", "Benchmark"]])
         st.dataframe(compare_df, use_container_width=True, hide_index=True)
 
-        gap_df = pd.DataFrame(
-            [
-                {
-                    "skill": skill_labels.get(g.skill, g.skill),
-                    "expected_level": round(g.expected_level * 100.0, 1),
-                    "current_estimate": round(g.current_level * 100.0, 1),
-                    "delta": round(g.delta * 100.0, 1),
-                    "impact": round(g.impact * 100.0, 1),
-                }
-                for g in assessment.gaps
-            ]
-        )
-        st.markdown("Detailed Gap Analysis")
-        st.dataframe(gap_df, use_container_width=True, hide_index=True)
-
     with st.expander("Section C - Recommendations + What-If Planner", expanded=True):
-        st.subheader("Top Role Recommendations")
-        role_df = pd.DataFrame(
-            [{"Role": role, "Match %": score} for role, score in assessment.recommendations]
-        )
+        role_df = pd.DataFrame([{"Role": role, "Match %": score} for role, score in assessment.recommendations])
         st.dataframe(role_df, use_container_width=True, hide_index=True)
-
-        st.subheader("Upskilling Plan")
         plan = assessment.upskilling_plan
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            st.markdown("**2-week**")
-            for item in plan.get("2-week", []):
-                st.write(f"- {item}")
-        with c2:
-            st.markdown("**30-day**")
-            for item in plan.get("30-day", []):
-                st.write(f"- {item}")
-        with c3:
-            st.markdown("**90-day**")
-            for item in plan.get("90-day", []):
-                st.write(f"- {item}")
-
-        st.markdown("### What-If Improvement Simulator")
-        bump = st.slider("Apply skill uplift to top 3 gaps (percentage points)", 0, 30, 10, step=5)
-        if st.button("Simulate Improvement"):
-            simulated = dict(profile.skills)
-            for gap in assessment.gaps[:3]:
-                simulated[gap.skill] = min(1.0, simulated.get(gap.skill, 0.0) + bump / 100.0)
-            simulated_profile = CandidateProfile(
-                name=profile.name,
-                target_role=profile.target_role,
-                education_level=profile.education_level,
-                experience_months=profile.experience_months,
-                self_proficiency=profile.self_proficiency,
-                tool_usage_frequency=profile.tool_usage_frequency,
-                projects_count=profile.projects_count,
-                internship_months=profile.internship_months,
-                skills=simulated,
-                interview_self_score=profile.interview_self_score,
-            )
-            sim_result = score_candidate(simulated_profile, benchmarks_by_role[profile.target_role], benchmarks)
-            st.success(
-                f"Projected Fit: {as_pct_label(sim_result.fit_score)} (was {as_pct_label(assessment.fit_score)}), "
-                f"Projected Likelihood: {as_pct_label(sim_result.quant_likelihood_pct)}"
-            )
+        a, b, c = st.columns(3)
+        a.markdown("**2-week**")
+        for item in plan.get("2-week", []):
+            a.write(f"- {item}")
+        b.markdown("**30-day**")
+        for item in plan.get("30-day", []):
+            b.write(f"- {item}")
+        c.markdown("**90-day**")
+        for item in plan.get("90-day", []):
+            c.write(f"- {item}")
 
     with st.expander("Section D - AI Mock Interviews", expanded=True):
         interview_score = st.slider("Optional self-score for mock interview (0-100)", 0, 100, 50)
         if st.button("Apply interview self-score to readiness likelihood"):
             profile.interview_self_score = float(interview_score)
-            refreshed = score_candidate(profile, benchmarks_by_role[profile.target_role], benchmarks)
-            st.session_state["assessment"] = refreshed
+            assessment = score_candidate(profile, benchmarks_by_role[profile.target_role], benchmarks)
+            st.session_state["assessment"] = assessment
             st.session_state["last_profile"] = profile
-            assessment = refreshed
             st.success("Updated readiness likelihood with interview self-score.")
 
         behavioral = [q for q in assessment.interview_pack if q.get("category") == "Behavioral"]
         technical = [q for q in assessment.interview_pack if q.get("category") == "Technical"]
-        c1, c2 = st.columns(2)
-        with c1:
-            st.markdown("#### Behavioral")
-            for item in behavioral:
-                st.write(item["question"])
-                st.caption(item["rubric"])
-        with c2:
-            st.markdown("#### Technical")
-            for item in technical:
-                st.write(item["question"])
-                st.caption(item["rubric"])
+        x, y = st.columns(2)
+        x.markdown("#### Behavioral")
+        for item in behavioral:
+            x.write(item["question"])
+            x.caption(item["rubric"])
+        y.markdown("#### Technical")
+        for item in technical:
+            y.write(item["question"])
+            y.caption(item["rubric"])
 
     with st.expander("Section E - Job Postings + Training Connectors", expanded=True):
         preferred_location = st.session_state.get("preferred_location", "United States")
-        st.markdown("#### Real Job Posting Sources")
-        st.caption("Live API results require `RAPIDAPI_KEY` in your environment.")
+        st.caption("Live API results require RAPIDAPI_KEY.")
         live_jobs = fetch_live_jobs(profile.target_role, preferred_location, max_results=8)
         if live_jobs:
-            st.success("Showing live job postings from external boards.")
             for job in live_jobs:
-                st.write(
-                    f"- [{job['title']} - {job['company']} ({job['source']})]({job['url']})"
-                )
+                st.write(f"- [{job['title']} - {job['company']} ({job['source']})]({job['url']})")
         else:
-            st.info("No live API results found. Use direct real-platform links below.")
-
+            st.info("No live API results found. Use direct platform links.")
         for item in build_job_search_links(profile.target_role, preferred_location):
             st.write(f"- [{item['title']}]({item['url']})")
 
-        st.markdown("#### Training + Bootcamp Connectors")
         top_gap_labels = [g.skill.replace("_", " ") for g in assessment.gaps[:3]]
         for item in build_training_links(top_gap_labels):
             st.write(f"- [{item['provider']}: {item['title']}]({item['url']})")
 
     with st.expander("Section F - AI Companion", expanded=True):
-        user_prompt = st.text_input(
-            "Ask your AI companion",
-            value="How can I improve my readiness fastest?",
-        )
+        prompt = st.text_input("Ask your AI companion", value="How can I improve my readiness fastest?")
         if st.button("Get Companion Guidance"):
-            st.write(companion_response(user_prompt, profile, assessment))
+            st.write(companion_response(prompt, profile, assessment))
 
     with st.expander("Section G - Narrative Mapping + Export", expanded=True):
-        mapping = [
-            {
-                "Feature": "Resume upload + skill mapping",
-                "Narrative Role": "Converts static credentials into dynamic readiness signals",
-            },
-            {
-                "Feature": "Fit % + gap analysis",
-                "Narrative Role": "Reduces ambiguity candidates feel about readiness",
-            },
-            {
-                "Feature": "Role recommendations",
-                "Narrative Role": "Helps candidates interpret evolving pathways",
-            },
-            {
-                "Feature": "Upskilling recommendations",
-                "Narrative Role": "Makes developmental progress visible",
-            },
-            {
-                "Feature": "AI mock interviews",
-                "Narrative Role": "Shows capability beyond resume signaling",
-            },
-            {
-                "Feature": "Quant readiness likelihood",
-                "Narrative Role": "Supports manager-side evaluation interpretation",
-            },
-        ]
-        st.dataframe(pd.DataFrame(mapping), hide_index=True, use_container_width=True)
-
-        report = export_payload(profile, assessment)
-        st.download_button(
-            "Download Assessment JSON",
-            data=json.dumps(report, indent=2),
-            file_name=f"{profile.name.lower().replace(' ', '_')}_assessment.json",
-            mime="application/json",
+        mapping = pd.DataFrame(
+            [
+                {"Feature": "Resume upload + skill mapping", "Narrative Role": "Converts static credentials into dynamic readiness signals"},
+                {"Feature": "Fit % + gap analysis", "Narrative Role": "Reduces ambiguity candidates feel about readiness"},
+                {"Feature": "Role recommendations", "Narrative Role": "Helps candidates interpret evolving pathways"},
+                {"Feature": "Upskilling recommendations", "Narrative Role": "Makes developmental progress visible"},
+                {"Feature": "AI mock interviews", "Narrative Role": "Shows capability beyond resume signaling"},
+                {"Feature": "Quant readiness likelihood", "Narrative Role": "Supports manager-side evaluation interpretation"},
+            ]
         )
+        st.dataframe(mapping, hide_index=True, use_container_width=True)
+        report = export_payload(profile, assessment)
+        st.download_button("Download Assessment JSON", data=json.dumps(report, indent=2), file_name=f"{profile.name.lower().replace(' ', '_')}_assessment.json", mime="application/json")
 
 
 st.set_page_config(page_title=APP_TITLE, layout="wide")
+inject_styles()
 st.title(APP_TITLE)
 st.caption(APP_SUBTITLE)
 
@@ -534,42 +483,29 @@ skills_meta = load_taxonomy()
 skill_labels = {item["key"]: item["label"] for item in skills_meta}
 benchmarks = load_benchmarks()
 benchmarks_by_role = role_lookup(benchmarks)
-roles = [benchmark.role for benchmark in benchmarks]
+roles = [b.role for b in benchmarks]
 ensure_state()
 
-with st.sidebar:
-    st.markdown("### Demo Login")
-    if not st.session_state["authenticated"]:
-        user_in = st.text_input("Username", value="demo")
-        pass_in = st.text_input("Password", type="password", value="demo")
-        if st.button("Sign In"):
-            if try_login(user_in, pass_in):
-                st.session_state["authenticated"] = True
-                st.success("Login successful.")
-            else:
-                st.error("Invalid demo credentials.")
-    else:
+if st.session_state["authenticated"]:
+    with st.sidebar:
+        st.markdown("### Session")
         st.success("Signed in as demo")
         if st.button("Sign Out"):
             st.session_state["authenticated"] = False
             st.session_state["assessment"] = None
             st.session_state["last_profile"] = None
             st.session_state["form_defaults"] = default_form_values()
-            st.success("Signed out.")
-
-    st.markdown("---")
-    st.markdown("### Navigation")
-    page = st.radio("Go to", ["Landing", "Assessment Workspace"])
-    st.markdown("### Scenario Presets")
-    preset = st.selectbox("Load preset profile", list(SCENARIO_PRESETS.keys()))
-    if st.button("Apply Preset"):
-        apply_preset(preset)
-        st.success(f"Loaded preset: {preset}")
-    if st.button("Reset Session"):
-        st.session_state["assessment"] = None
-        st.session_state["last_profile"] = None
-        st.session_state["form_defaults"] = default_form_values()
-        st.success("Session reset complete.")
+            st.rerun()
+        page = st.radio("Go to", ["Landing", "Assessment Workspace"])
+        preset = st.selectbox("Load preset profile", list(SCENARIO_PRESETS.keys()))
+        if st.button("Apply Preset"):
+            apply_preset(preset)
+            st.success(f"Loaded preset: {preset}")
+else:
+    with st.sidebar:
+        st.markdown("### Session")
+        st.info("Please sign in on the Landing page.")
+    page = "Landing"
 
 if page == "Landing":
     render_landing_page()
